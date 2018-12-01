@@ -21,13 +21,14 @@ description:         Please see the README on GitHub at <https://github.com/gith
 
 dependencies:
 - base >= 4.7 && < 5
+- containers
 
 library:
   source-dirs: src
 
 executables:
-  advent-of-haskell-exe:
-    main:                Main.hs
+  q01:
+    main:                q01.hs
     source-dirs:         app
     ghc-options:
     - -threaded
