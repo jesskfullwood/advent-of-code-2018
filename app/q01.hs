@@ -1,9 +1,9 @@
 module Main where
 
 import           Data.Maybe
+import           Data.Set
 import           Debug.Trace
 import           Text.Read
-import Data.Set
 
 
 textToInts :: String -> Maybe [Int]
@@ -22,14 +22,14 @@ seenBefore :: Set Int -> Int -> Either Int (Set Int)
 seenBefore set freq =
   case lookupIndex freq set of
     Nothing -> Right $ insert freq set
-    Just _ -> Left freq
+    Just _  -> Left freq
 
 findRepeatedFreq :: [Int] -> Int
 findRepeatedFreq freqs =
   let checkFreq (freq:rest) set cum =
         let cumFreq = freq + cum in
         case seenBefore set cumFreq of
-          Left res -> res
+          Left res   -> res
           Right set' -> checkFreq rest set' cumFreq
   in
     checkFreq (cycle freqs) empty 0
