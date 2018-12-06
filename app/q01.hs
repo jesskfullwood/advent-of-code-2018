@@ -37,7 +37,7 @@ findRepeatedFreq freqs =
 main :: IO ()
 main =
   do
-    text <- readFile "data/01-1"
+    text <- readFile "data/01"
     let vals = fromMaybe [] $ textToInts text
     putStrLn .  (++) "V1: " $ show $ sum vals
     putStrLn .  (++) "V2: " $ show $ findRepeatedFreq vals

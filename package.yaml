@@ -37,6 +37,17 @@ executables:
     dependencies:
     - advent-of-haskell
 
+executables:
+  q02:
+    main:                q02.hs
+    source-dirs:         app
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - advent-of-haskell
+
 tests:
   advent-of-haskell-test:
     main:                Spec.hs
