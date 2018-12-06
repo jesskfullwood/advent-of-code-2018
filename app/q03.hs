@@ -14,7 +14,7 @@ type Map = M.Map (Int, Int) Int
 
 type Parser = Parsec Void String
 type Error = ParseErrorBundle String Void
-data Record = Record { id   :: Int
+data Record = Record { rid   :: Int
                      , posn :: (Int, Int)
                      , size :: (Int, Int)
                      }
@@ -43,9 +43,6 @@ parseRecord = do
   pure $ Record id (xpos, ypos) (xsize, ysize)
 
 
-rows = 1000
-cols = 1000
-
 posnCounts :: [Record] -> Map
 posnCounts records =
   foldl updateCounts M.empty records
@@ -65,13 +62,22 @@ recordIndices (Record _ (xpos, ypos) (xsize, ysize)) =
     [(x, y)]
 
 
+doesNotOverlap :: Map -> Record -> Bool
+doesNotOverlap counts record =
+  all (\k -> counts M.! k <= 1) $ recordIndices record
+
+
 main = do
   lines <- ingest
   let parsed :: Either Error [Record] = sequence $ parseLine <$> lines
   case parsed of
     Left err      -> putStrLn (errorBundlePretty err)
     Right records ->
-      let cts = M.toList . posnCounts $ records
-          multipleCliams = filter (\(pos, ct) -> ct > 1) cts
-      in putStrLn $ (show . length) multipleCliams
+      let counts = posnCounts $ records
+          multipleCliams = filter (\(pos, ct) -> ct > 1) $ M.toList counts
+          nonoverlapping = filter (doesNotOverlap counts) records
+      in
+        do
+          putStrLn $ "Squares with multiple claims: " ++ (show . length) multipleCliams
+          putStrLn $ "Records with no overlapping claims: " ++ show  (rid <$> nonoverlapping)
 
