@@ -46,11 +46,13 @@ main :: IO ()
 main = do
   wordList <- ingest
   let sortedStrs = sort <$> wordList
+
   let twoCt = foldl (\ct inp -> ct + boolInt (countTwos inp)) 0 sortedStrs
   let threeCt = foldl (\ct inp -> ct + boolInt (countThrees inp)) 0 sortedStrs
   putStrLn $ "Twos: " ++ show twoCt
   putStrLn $ "Threes: " ++ show threeCt
   putStrLn $ show $ twoCt * threeCt
+
   let pairs :: [(String, String)] = wordList >>= (\left -> (wordList >>= \right -> pure (left, right)))
   let unqs = filter (uncurry (>)) pairs
   let differByOne = filter (\(l, r) -> (countDiffs l r) == 1) unqs

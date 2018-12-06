@@ -22,6 +22,7 @@ description:         Please see the README on GitHub at <https://github.com/gith
 dependencies:
 - base >= 4.7 && < 5
 - containers
+- megaparsec
 
 library:
   source-dirs: src
@@ -30,31 +31,9 @@ executables:
   q01:
     main:                q01.hs
     source-dirs:         app
-    ghc-options:
-    - -threaded
-    - -rtsopts
-    - -with-rtsopts=-N
-    dependencies:
-    - advent-of-haskell
-
-executables:
   q02:
     main:                q02.hs
     source-dirs:         app
-    ghc-options:
-    - -threaded
-    - -rtsopts
-    - -with-rtsopts=-N
-    dependencies:
-    - advent-of-haskell
-
-tests:
-  advent-of-haskell-test:
-    main:                Spec.hs
-    source-dirs:         test
-    ghc-options:
-    - -threaded
-    - -rtsopts
-    - -with-rtsopts=-N
-    dependencies:
-    - advent-of-haskell
+  q03:
+    main:                q03.hs
+    source-dirs:         app

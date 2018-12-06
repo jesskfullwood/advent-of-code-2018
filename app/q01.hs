@@ -2,9 +2,7 @@ module Main where
 
 import           Data.Maybe
 import           Data.Set
-import           Debug.Trace
 import           Text.Read
-
 
 textToInts :: String -> Maybe [Int]
 textToInts text =
