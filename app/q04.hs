@@ -90,7 +90,12 @@ organizeRecords records =
                                         (gid, foldl (\list pair -> list ++ (uncurry minuteList) pair) [] pairs)
                                      ) organized
   in
-    foldl (\map rcd -> M.alter (\mbShifts -> Just $ fromMaybe [] mbShifts ++ snd rcd) (fst rcd) map) M.empty diffs
+    foldl (\map rcd -> insertOrUpdate (fst rcd) (\list -> list ++ snd rcd) [] map) M.empty diffs
+
+
+insertOrUpdate :: Ord k => k -> (a -> a) -> a -> M.Map k a -> M.Map k a
+insertOrUpdate key updateFunc defaultVal dict =
+  M.alter (\mbVal -> Just $ updateFunc (fromMaybe defaultVal mbVal)) key dict
 
 
 organizeRecords' :: [Record] -> [(Int, [(UTCTime, UTCTime)])] -> [(Int, [(UTCTime, UTCTime)])]
@@ -107,11 +112,18 @@ organizeRecords' ((t1, event1):(t2, event2):rest) shifts =
     _ -> error "Unexpected pair"
 organizeRecords' (one:rest) rtn = error . show $ one
 
+
 runLength :: Ord a => [a] -> [(a, Int)]
 runLength list = fmap (\x -> (head x, length x)) $ (group . sort) list
 
+
+maximumByKey :: Ord b => (a -> b) -> [a] -> a
+maximumByKey f list = maximumBy (\l r -> compare (f l) (f r)) list
+
+
 maxOfRunLengths :: [(a, Int)] -> (a, Int)
-maxOfRunLengths list = maximumBy (\l r -> compare (snd l) (snd r)) list
+maxOfRunLengths list = maximumByKey snd list
+
 
 main = do
   lines <- ingest
@@ -121,18 +133,12 @@ main = do
     Right records -> do
       let ordRecs = sortOn fst records
           shiftAgg = filter (\(git, mins) -> length mins > 0) $ M.toList $ organizeRecords ordRecs
-          bestGuard = maximumBy (\l r -> compare (length . snd $ l) (length . snd $ r)) shiftAgg
+          bestGuard = maximumByKey (length . snd) shiftAgg
           runLengthOfTimes = runLength $ snd bestGuard
           mostCommonTime = maxOfRunLengths runLengthOfTimes
       putStrLn $ "Best guard * best minute: " ++ (show $ (fst bestGuard * fst mostCommonTime))
       let bestMinuteList :: [(Int, (Int, Int))] = fmap (\(gid, minutesList) ->
                                    (gid, maxOfRunLengths $ runLength minutesList)) shiftAgg
-          bestGuardMinute = maximumBy (\(gid1, (minute1, run1)) (gid2, (minute2, run2)) -> compare run1 run2) bestMinuteList
+          bestGuardMinute = maximumByKey (snd . snd) bestMinuteList
           res = fst bestGuardMinute * (fst . snd) bestGuardMinute
       putStrLn $ "Best minute for any guard * guard Id: " ++ show res
-
-
-
-
-
-
