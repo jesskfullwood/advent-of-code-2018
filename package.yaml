@@ -23,6 +23,7 @@ dependencies:
 - base >= 4.7 && < 5
 - containers
 - megaparsec
+- time
 
 library:
   source-dirs: src
@@ -36,4 +37,7 @@ executables:
     source-dirs:         app
   q03:
     main:                q03.hs
+    source-dirs:         app
+  q04:
+    main:                q04.hs
     source-dirs:         app
