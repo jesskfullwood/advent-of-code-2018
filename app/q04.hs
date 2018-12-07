@@ -107,6 +107,11 @@ organizeRecords' ((t1, event1):(t2, event2):rest) shifts =
     _ -> error "Unexpected pair"
 organizeRecords' (one:rest) rtn = error . show $ one
 
+runLength :: Ord a => [a] -> [(a, Int)]
+runLength list = fmap (\x -> (head x, length x)) $ (group . sort) list
+
+maxOfRunLengths :: [(a, Int)] -> (a, Int)
+maxOfRunLengths list = maximumBy (\l r -> compare (snd l) (snd r)) list
 
 main = do
   lines <- ingest
@@ -115,9 +120,19 @@ main = do
     Left err      -> putStrLn (errorBundlePretty err)
     Right records -> do
       let ordRecs = sortOn fst records
-          shiftAgg = M.toList $ organizeRecords ordRecs
+          shiftAgg = filter (\(git, mins) -> length mins > 0) $ M.toList $ organizeRecords ordRecs
           bestGuard = maximumBy (\l r -> compare (length . snd $ l) (length . snd $ r)) shiftAgg
-          runLengthOfTimes = fmap (\x -> (head x, length x)) $ group (sort . snd $ bestGuard)
-          mostCommonTime = maximumBy (\l r -> compare (snd l) (snd r)) runLengthOfTimes
+          runLengthOfTimes = runLength $ snd bestGuard
+          mostCommonTime = maxOfRunLengths runLengthOfTimes
       putStrLn $ "Best guard * best minute: " ++ (show $ (fst bestGuard * fst mostCommonTime))
+      let bestMinuteList :: [(Int, (Int, Int))] = fmap (\(gid, minutesList) ->
+                                   (gid, maxOfRunLengths $ runLength minutesList)) shiftAgg
+          bestGuardMinute = maximumBy (\(gid1, (minute1, run1)) (gid2, (minute2, run2)) -> compare run1 run2) bestMinuteList
+          res = fst bestGuardMinute * (fst . snd) bestGuardMinute
+      putStrLn $ "Best minute for any guard * guard Id: " ++ show res
+
+
+
+
+
 
