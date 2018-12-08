@@ -2,10 +2,10 @@ module Util
     ( insertOrUpdate, maximumByKey, trace
     ) where
 
-import Data.Map.Strict as M
-import Data.List
-import qualified Debug.Trace as T
-import Data.Maybe
+import           Data.List
+import qualified Data.Map.Strict as M
+import           Data.Maybe
+import qualified Debug.Trace     as T
 
 
 insertOrUpdate :: Ord k => k -> (a -> a) -> a -> M.Map k a -> M.Map k a

@@ -38,3 +38,8 @@ executables:
     source-dirs:         app
     dependencies:
       - advent-of-haskell
+  q08:
+    main:                q08.hs
+    source-dirs:         app
+    dependencies:
+      - advent-of-haskell
