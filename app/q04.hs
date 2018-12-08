@@ -13,6 +13,7 @@ import           Text.Megaparsec
 import           Text.Megaparsec.Char
 import qualified Text.Megaparsec.Char.Lexer as L
 import           Text.Megaparsec.Error
+import           Util
 
 type Parser = Parsec Void String
 type Error = ParseErrorBundle String Void
@@ -93,11 +94,6 @@ organizeRecords records =
     foldl (\map rcd -> insertOrUpdate (fst rcd) (\list -> list ++ snd rcd) [] map) M.empty diffs
 
 
-insertOrUpdate :: Ord k => k -> (a -> a) -> a -> M.Map k a -> M.Map k a
-insertOrUpdate key updateFunc defaultVal dict =
-  M.alter (\mbVal -> Just $ updateFunc (fromMaybe defaultVal mbVal)) key dict
-
-
 organizeRecords' :: [Record] -> [(Int, [(UTCTime, UTCTime)])] -> [(Int, [(UTCTime, UTCTime)])]
 organizeRecords' [] rtn = rtn
 organizeRecords' ((t1, event1):(t2, event2):rest) shifts =
@@ -115,10 +111,6 @@ organizeRecords' (one:rest) rtn = error . show $ one
 
 runLength :: Ord a => [a] -> [(a, Int)]
 runLength list = fmap (\x -> (head x, length x)) $ (group . sort) list
-
-
-maximumByKey :: Ord b => (a -> b) -> [a] -> a
-maximumByKey f list = maximumBy (\l r -> compare (f l) (f r)) list
 
 
 maxOfRunLengths :: [(a, Int)] -> (a, Int)

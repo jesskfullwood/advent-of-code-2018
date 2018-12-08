@@ -23,9 +23,18 @@ executables:
   q04:
     main:                q04.hs
     source-dirs:         app
+    dependencies:
+      - advent-of-haskell
   q05:
     main:                q05.hs
     source-dirs:         app
   q06:
     main:                q06.hs
     source-dirs:         app
+    dependencies:
+      - advent-of-haskell
+  q07:
+    main:                q07.hs
+    source-dirs:         app
+    dependencies:
+      - advent-of-haskell

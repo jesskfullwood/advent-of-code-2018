@@ -4,11 +4,9 @@ import           Data.List
 import           Data.List.Split
 import           Data.Maybe
 import           Debug.Trace
+import           Util
 
 type Point = (Int, Int)
-
-maximumByKey :: Ord b => (a -> b) -> [a] -> a
-maximumByKey f list = maximumBy (\l r -> compare (f l) (f r)) list
 
 parseIntPair :: String -> Point
 parseIntPair line =
