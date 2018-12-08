@@ -1,9 +1,10 @@
 module Util
-    ( insertOrUpdate, maximumByKey
+    ( insertOrUpdate, maximumByKey, trace
     ) where
 
 import Data.Map.Strict as M
 import Data.List
+import qualified Debug.Trace as T
 import Data.Maybe
 
 
@@ -14,3 +15,7 @@ insertOrUpdate key updateFunc defaultVal dict =
 
 maximumByKey :: Ord b => (a -> b) -> [a] -> a
 maximumByKey f list = maximumBy (\l r -> compare (f l) (f r)) list
+
+
+trace :: Show a => String -> a -> a
+trace s val = T.trace (s ++ show val) val
