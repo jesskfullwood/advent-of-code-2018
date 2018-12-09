@@ -6,6 +6,7 @@ dependencies:
 - megaparsec
 - time
 - split
+- ilist
 
 library:
   source-dirs: src
@@ -40,6 +41,11 @@ executables:
       - advent-of-haskell
   q08:
     main:                q08.hs
+    source-dirs:         app
+    dependencies:
+      - advent-of-haskell
+  q09:
+    main:                q09.hs
     source-dirs:         app
     dependencies:
       - advent-of-haskell
