@@ -7,6 +7,8 @@ dependencies:
 - time
 - split
 - ilist
+- vector
+- primitive
 
 library:
   source-dirs: src
@@ -49,3 +51,5 @@ executables:
     source-dirs:         app
     dependencies:
       - advent-of-haskell
+    ghc-options:
+    - -O2
