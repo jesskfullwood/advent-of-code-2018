@@ -9,6 +9,7 @@ dependencies:
 - ilist
 - vector
 - primitive
+- parser-combinators
 
 library:
   source-dirs: src
@@ -51,5 +52,8 @@ executables:
     source-dirs:         app
     dependencies:
       - advent-of-haskell
-    ghc-options:
-    - -O2
+  q10:
+    main:                q10.hs
+    source-dirs:         app
+    dependencies:
+      - advent-of-haskell

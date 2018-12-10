@@ -1,5 +1,5 @@
 module Util
-    ( insertOrUpdate, maximumByKey, trace
+    ( insertOrUpdate, maximumByKey, minimumByKey, trace, replaceNth
     ) where
 
 import           Data.List
@@ -16,6 +16,14 @@ insertOrUpdate key updateFunc defaultVal dict =
 maximumByKey :: Ord b => (a -> b) -> [a] -> a
 maximumByKey f list = maximumBy (\l r -> compare (f l) (f r)) list
 
+minimumByKey :: Ord b => (a -> b) -> [a] -> a
+minimumByKey f list = minimumBy (\l r -> compare (f l) (f r)) list
 
 trace :: Show a => String -> a -> a
 trace s val = T.trace (s ++ show val) val
+
+replaceNth :: Int -> a -> [a] -> [a]
+replaceNth _ _ [] = []
+replaceNth n newVal (x:xs)
+  | n == 0 = newVal:xs
+  | otherwise = x:replaceNth (n-1) newVal xs
