@@ -67,3 +67,8 @@ executables:
     source-dirs:         app
     dependencies:
       - advent-of-haskell
+  q13:
+    main:                q13.hs
+    source-dirs:         app
+    dependencies:
+      - advent-of-haskell
