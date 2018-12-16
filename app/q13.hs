@@ -2,13 +2,10 @@
 
 module Main where
 
-import           Control.Monad   (join)
-import           Data.Foldable   (toList)
 import qualified Data.Map.Strict as M
-import           Data.Maybe      (fromMaybe, isJust)
+import           Data.Maybe      (fromMaybe)
 import           Data.Sequence   (Seq (..), (|>))
 import qualified Data.Sequence   as S
-import           Data.Void
 import           Debug.Trace
 
 data Turn = RightTurn | LeftTurn | StraightAhead deriving Show
