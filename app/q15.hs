@@ -1,7 +1,10 @@
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TupleSections       #-}
 
 module Main where
 
+import           Control.Applicative         ((<**>))
+import           Data.List                   (sort)
 import           Data.List.Split             (chunksOf)
 import qualified Data.Map.Strict             as Map
 import           Data.Maybe                  (isNothing, listToMaybe, mapMaybe)
@@ -24,6 +27,7 @@ type Grid = (V.Vector Bool, Int, Int)
 type Coord = (Int, Int)
 type Entities = Map.Map Coord Entity
 type Bfs = M.IOVector Int
+type Distances = (V.Vector Int, Int)
 
 initHealth :: Int
 initHealth = 300
@@ -48,7 +52,7 @@ parseFile str =
     ((V.fromList gridList, ncols, nrows), entities)
 
 ingest :: IO (Grid, Entities)
-ingest = parseFile <$> readFile "data/15"
+ingest = parseFile <$> readFile "data/15-test"
 
 up :: Coord -> Coord
 up (x, y) = (x, y + 1)
@@ -114,24 +118,46 @@ entityTurn grid entities entity =
   case willAttack entity entities of
     -- do the attack
     Just (_, coord, _) -> pure $ Map.update (\(c, _, hp) -> if hp > 3 then Just (c, coord, hp - 3) else Nothing) coord entities
-    Nothing -> entityMove grid entities entity
+    Nothing -> moveEntity grid entities entity
 
 willAttack :: Entity -> Entities -> Maybe Entity
 willAttack (c, coord, _) entities =
   let lookup' f = Map.lookup (f coord) entities >>= (\e2@(c2, _, _) -> if c /= c2 then Just e2 else Nothing)
-  in listToMaybe . (mapMaybe lookup') $ [up, right, down, left]  -- attack order
+  in listToMaybe . (mapMaybe lookup') $ [up, left, right, down]  -- attack order
 
-entityMove :: Grid -> Entities -> Entity -> IO Entities
-entityMove grid entities (_, coord, _) = do
-  dists <- dijkstra grid entities coord
+getDist :: Distances -> Coord -> Maybe Int
+getDist (vec, xs) (x, y) = case vec ! (xs * y + x) of
+  0   -> Nothing  -- This location is unreachable
+  val -> Just val
+
+closestOfGivenPositions :: Distances -> [Coord] -> Maybe (Int, Coord)
+closestOfGivenPositions dist targets =
+  (listToMaybe . sort) $ mapMaybe (\t -> (,t) <$> getDist dist t ) targets
+
+traceRoute :: Distances -> Coord -> [Coord]
+traceRoute dists fromPosn =
   undefined
+
+moveEntity :: Grid -> Entities -> Entity -> IO Entities
+moveEntity grid@(_, xs, _) entities (c, coord, hp) = do
+  bfs <- dijkstra grid entities coord
+  let dists = (bfs, xs)
+      enemies = Map.filter (\(c2, _, _) -> c /= c2) entities
+      positionsAdjacentToEnemies :: [Coord] =  [up, left, right, down] <*> (Map.keys enemies)
+  case closestOfGivenPositions dists positionsAdjacentToEnemies of
+    Just (_dist, closest) ->
+      let (nextStep:_rest) = traceRoute dists closest
+          addedEntity = Map.insert nextStep (c, nextStep, hp) entities
+      in
+        pure (Map.delete coord addedEntity)
+    Nothing -> pure entities  -- There is no enemy which can be reached
 
 
 dijkstra :: Grid -> Entities -> Coord -> IO (V.Vector Int)
 dijkstra grid@(grid', _, _) entities source = do
   let
     -- set initial positions
-    posns = empty |> (source, sourceInt) |> (up source, 1) |> (down source, 1) |> (left source, 1) |> (right source, 1)
+    posns = empty |> (source, sourceInt) |> (up source, 1) |> (left source, 1) |> (right source, 1) |> (down source, 1)
     bfs = M.new (V.length grid')
   bfs' <- dijkstra' grid entities source bfs posns
   V.freeze bfs'
@@ -151,9 +177,9 @@ dijkstra' grid@(_, xs, _) entities source bfs ((nextPosn,dist):<|posns) =
           let nextDist = dist + 1
           let posns' = posns
                 |> (up nextPosn, nextDist)
-                |> (down nextPosn, nextDist)
                 |> (left nextPosn, nextDist)
                 |> (right nextPosn, nextDist)
+                |> (down nextPosn, nextDist)
           () <- setBfs bfs' xs nextPosn dist
           dijkstra' grid entities source (pure bfs') posns'
   else
@@ -162,7 +188,7 @@ dijkstra' grid@(_, xs, _) entities source bfs ((nextPosn,dist):<|posns) =
 main :: IO ()
 main = do
   (grid@(_, xs, _), entities) <- ingest
-  bfs <- dijkstra grid entities (22, 22)
+  bfs <- dijkstra grid entities (1, 1)
   putStrLn $ showGrid grid entities
   putStrLn $ showDijkstra bfs xs
   pure ()
