@@ -3,8 +3,8 @@
 
 module Main where
 
-import           Control.Applicative         ((<**>))
-import           Data.List                   (sort)
+import           Control.Monad               (foldM)
+import           Data.List                   (find, sortOn)
 import           Data.List.Split             (chunksOf)
 import qualified Data.Map.Strict             as Map
 import           Data.Maybe                  (isNothing, listToMaybe, mapMaybe)
@@ -115,10 +115,10 @@ sourceInt = 9999
 
 entityTurn :: Grid -> Entities -> Entity -> IO Entities
 entityTurn grid entities entity =
-  case willAttack entity entities of
+  case willAttack (trace "Entity turn: " entity) entities of
     -- do the attack
     Just (_, coord, _) -> pure $ Map.update (\(c, _, hp) -> if hp > 3 then Just (c, coord, hp - 3) else Nothing) coord entities
-    Nothing -> moveEntity grid entities entity
+    Nothing -> moveEntity grid entities (trace "Move entity: " entity)
 
 willAttack :: Entity -> Entities -> Maybe Entity
 willAttack (c, coord, _) entities =
@@ -132,22 +132,36 @@ getDist (vec, xs) (x, y) = case vec ! (xs * y + x) of
 
 closestOfGivenPositions :: Distances -> [Coord] -> Maybe (Int, Coord)
 closestOfGivenPositions dist targets =
-  (listToMaybe . sort) $ mapMaybe (\t -> (,t) <$> getDist dist t ) targets
+  let sorter (dist', (x, y)) = (dist', y, x)
+  in
+  trace "Chosen closest: " $ (listToMaybe . (trace "sorted options") . (sortOn sorter)) $ mapMaybe (\t -> (,t) <$> getDist dist t ) ( trace "Targets :" targets)
 
-traceRoute :: Distances -> Coord -> [Coord]
-traceRoute dists fromPosn =
-  undefined
+surroundingCoords :: Coord -> [Coord]
+surroundingCoords coord = [up, left, right, down] <*> [coord]
+
+traceRoute :: Distances -> Coord -> Coord -> [Coord]
+traceRoute dists fromPosn target =
+  let traceRoute' fromPosn' route =
+        let surrounds = surroundingCoords fromPosn'
+        in
+          case find (\pos -> pos == trace "home: " target) (trace "move options: " surrounds) of
+            Just found -> (found:route)  -- you have reached your destination
+            Nothing -> case closestOfGivenPositions dists surrounds of
+              Just (_dist, closest) -> traceRoute' closest (closest:route)
+              Nothing               -> error "No route found"
+  in
+    trace "Chosen route: " $ traceRoute' fromPosn [fromPosn]
 
 moveEntity :: Grid -> Entities -> Entity -> IO Entities
 moveEntity grid@(_, xs, _) entities (c, coord, hp) = do
   bfs <- dijkstra grid entities coord
   let dists = (bfs, xs)
       enemies = Map.filter (\(c2, _, _) -> c /= c2) entities
-      positionsAdjacentToEnemies :: [Coord] =  [up, left, right, down] <*> (Map.keys enemies)
+      positionsAdjacentToEnemies :: [Coord] =  concat $ map surroundingCoords (Map.keys enemies)
   case closestOfGivenPositions dists positionsAdjacentToEnemies of
     Just (_dist, closest) ->
-      let (nextStep:_rest) = traceRoute dists closest
-          addedEntity = Map.insert nextStep (c, nextStep, hp) entities
+      let (_origPosn:nextStep:_rest) = traceRoute dists closest coord
+          addedEntity = trace "added new posn " $ Map.insert nextStep (c, nextStep, hp) entities
       in
         pure (Map.delete coord addedEntity)
     Nothing -> pure entities  -- There is no enemy which can be reached
@@ -185,10 +199,27 @@ dijkstra' grid@(_, xs, _) entities source bfs ((nextPosn,dist):<|posns) =
   else
     dijkstra' grid entities source bfs posns
 
+stepRound :: Grid -> Entities -> IO Entities
+stepRound grid entities =
+  foldM (\ioentities entity -> entityTurn grid ioentities entity) entities (Map.elems entities)
+
+runToEnd :: Int -> Grid -> Entities -> IO Entities
+runToEnd tick grid entities = do
+  putStrLn ("Tick: " ++ show tick)
+  entities' <- stepRound grid entities
+  if entities /= entities' then
+    putStrLn $ showGrid grid entities'
+    else
+    pure ()
+  if (length $ filter (\(c, _, _) -> c == Elf) (Map.elems entities')) == 0 then
+    pure entities'
+  else
+    runToEnd (tick + 1) grid entities'
+
 main :: IO ()
 main = do
-  (grid@(_, xs, _), entities) <- ingest
-  bfs <- dijkstra grid entities (1, 1)
+  (grid, entities) <- ingest
+  print entities
   putStrLn $ showGrid grid entities
-  putStrLn $ showDijkstra bfs xs
+  _ <- runToEnd 0 grid entities
   pure ()
