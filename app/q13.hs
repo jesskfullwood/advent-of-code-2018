@@ -7,6 +7,7 @@ import           Data.Maybe      (fromMaybe)
 import           Data.Sequence   (Seq (..), (|>))
 import qualified Data.Sequence   as S
 import           Debug.Trace
+import           Util            (foldlWithIndex)
 
 data Turn = RightTurn | LeftTurn | StraightAhead deriving Show
 data Direction = Up | Down | LeftD | RightD deriving Show
@@ -80,10 +81,6 @@ squareToChar _ (Just (Elf _ dirn _)) =
     Down   -> 'v'
     RightD -> '>'
     LeftD  -> '<'
-
-
-foldlWithIndex :: (Int -> b -> a -> b) -> b -> [a] -> b
-foldlWithIndex f initial list = foldl (\b (ix, a) -> f ix b a) initial (zip [0..] list)
 
 parseBoard :: String -> (Board, Elves)
 parseBoard input =

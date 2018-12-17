@@ -77,3 +77,8 @@ executables:
     source-dirs:         app
     dependencies:
       - advent-of-haskell
+  q15:
+    main:                q15.hs
+    source-dirs:         app
+    dependencies:
+      - advent-of-haskell
