@@ -4,10 +4,10 @@
 module Main where
 
 import           Control.Monad               (foldM)
-import           Data.List                   (find, sortOn)
+import           Data.List                   (find, sort, sortOn)
 import           Data.List.Split             (chunksOf)
 import qualified Data.Map.Strict             as Map
-import           Data.Maybe                  (isNothing, listToMaybe, mapMaybe)
+import           Data.Maybe                  (isNothing, isJust, listToMaybe, mapMaybe)
 import           Data.Sequence               (Seq (..), empty, (|>))
 import           Data.Vector.Unboxed         ((!))
 import qualified Data.Vector.Unboxed         as V
@@ -30,14 +30,14 @@ type Bfs = M.IOVector Int
 type Distances = (V.Vector Int, Int)
 
 initHealth :: Int
-initHealth = 300
+initHealth = 200
 
 parseFile :: String -> (Grid, Entities)
 parseFile str =
   let rows = lines str
       (gridList, entities) = foldrWithIndex (\rowIx row (grid, entities') ->
                     foldrWithIndex (\colIx char (grid', entities'') ->
-                                      let coord = (colIx, rowIx) in
+                                      let coord = (rowIx, colIx) in
                                       case char of
                                           '#' -> (False:grid', entities'')
                                           '.' -> (True:grid', entities'')
@@ -49,33 +49,33 @@ parseFile str =
       nrows = length rows
       ncols = length (rows !! 0)
   in
-    ((V.fromList gridList, ncols, nrows), entities)
+    ((V.fromList gridList, nrows, ncols), entities)
 
 ingest :: IO (Grid, Entities)
-ingest = parseFile <$> readFile "data/15-test"
+ingest = parseFile <$> readFile "data/15"
 
 up :: Coord -> Coord
-up (x, y) = (x, y + 1)
+up (y, x) = (y + 1, x)
 
 down :: Coord -> Coord
-down (x, y) = (x, y - 1)
+down (y, x) = (y - 1, x)
 
 right :: Coord -> Coord
-right (x, y) = (x + 1, y)
+right (y, x) = (y, x + 1)
 
 left :: Coord -> Coord
-left (x, y) = (x - 1, y)
+left (y, x) = (y, x - 1)
 
 isValidSquare :: Grid -> Coord -> Bool
-isValidSquare (grid, xs, _) (x, y) =
+isValidSquare (grid, _, xs) (y, x) =
   grid ! (xs * y + x)
 
 readBfs :: Bfs -> Int -> Coord -> IO (Maybe Int)
-readBfs bfs xs (x, y) =
+readBfs bfs xs (y, x) =
     (\v -> if v == 0 then Nothing else Just v) <$> M.read bfs (xs * y + x)
 
 setBfs :: Bfs -> Int -> Coord -> Int -> IO ()
-setBfs bfs xs (x, y) val =
+setBfs bfs xs (y, x) val =
     M.write bfs (xs * y + x) val
 
 boolToChar :: Bool -> Char
@@ -98,9 +98,9 @@ update list posn val =
   take posn list ++ val:(drop (posn + 1) list)
 
 showGrid :: Grid -> Entities -> String
-showGrid (grid, xs, _) entities =
+showGrid (grid, _ys, xs) entities =
   let chars = boolToChar <$> V.toList grid
-      chars'' = foldl (\chars' ((x, y), entity) ->
+      chars'' = foldl (\chars' ((y, x), entity) ->
                         update chars' (y * xs + x) (entityToChar entity)) chars (Map.toList entities)
   in
   unlines (chunksOf xs chars'')
@@ -114,27 +114,44 @@ sourceInt :: Int
 sourceInt = 9999
 
 entityTurn :: Grid -> Entities -> Entity -> IO Entities
-entityTurn grid entities entity =
-  case willAttack (trace "Entity turn: " entity) entities of
+entityTurn grid entities entity@(c, coord, hp) = do
+  let couldAttack = isJust (willAttack (trace "attacking: " entity) entities)
+  mbNextStep <- if couldAttack then
+                 pure Nothing -- we can attack, so don't try to move
+               else
+                 moveEntity grid entities entity
+  let (entity', updatedEntities) = case mbNextStep of
+        Nothing -> (entity, entities)  -- nothing to be done
+        Just newCoord ->
+          let
+            -- update the entites map with new coords
+            updatedEntity = (c, newCoord, hp)
+            removedOldEntity = Map.delete coord entities
+          in
+            (updatedEntity, Map.insert newCoord updatedEntity removedOldEntity)
+  case willAttack entity' updatedEntities of
     -- do the attack
-    Just (_, coord, _) -> pure $ Map.update (\(c, _, hp) -> if hp > 3 then Just (c, coord, hp - 3) else Nothing) coord entities
-    Nothing -> moveEntity grid entities (trace "Move entity: " entity)
+    Just (Goblin, coord', _) -> pure $ Map.update (\(c', _, hp') ->
+                                               if hp' > elfPower then Just (c', coord', hp' - elfPower) else Nothing
+                                            ) coord' updatedEntities
+    Just (Elf, coord', _) -> pure $ Map.update (\(c', _, hp') ->
+                                               if hp' > 3 then Just (c', coord', hp' - 3) else Nothing
+                                            ) coord' updatedEntities
+    Nothing -> pure updatedEntities
 
 willAttack :: Entity -> Entities -> Maybe Entity
 willAttack (c, coord, _) entities =
   let lookup' f = Map.lookup (f coord) entities >>= (\e2@(c2, _, _) -> if c /= c2 then Just e2 else Nothing)
-  in listToMaybe . (mapMaybe lookup') $ [up, left, right, down]  -- attack order
+  in listToMaybe . (sortOn (\(_, coord', hp) -> (hp, coord'))) . (mapMaybe lookup') $ [up, left, right, down]  -- attack order
 
 getDist :: Distances -> Coord -> Maybe Int
-getDist (vec, xs) (x, y) = case vec ! (xs * y + x) of
+getDist (vec, xs) (y, x) = case vec ! (xs * y + x) of
   0   -> Nothing  -- This location is unreachable
   val -> Just val
 
 closestOfGivenPositions :: Distances -> [Coord] -> Maybe (Int, Coord)
 closestOfGivenPositions dist targets =
-  let sorter (dist', (x, y)) = (dist', y, x)
-  in
-  trace "Chosen closest: " $ (listToMaybe . (trace "sorted options") . (sortOn sorter)) $ mapMaybe (\t -> (,t) <$> getDist dist t ) ( trace "Targets :" targets)
+  (listToMaybe . sort) $ mapMaybe (\t -> (,t) <$> getDist dist t ) targets
 
 surroundingCoords :: Coord -> [Coord]
 surroundingCoords coord = [up, left, right, down] <*> [coord]
@@ -144,16 +161,16 @@ traceRoute dists fromPosn target =
   let traceRoute' fromPosn' route =
         let surrounds = surroundingCoords fromPosn'
         in
-          case find (\pos -> pos == trace "home: " target) (trace "move options: " surrounds) of
+          case find (\pos -> pos == target) surrounds of
             Just found -> (found:route)  -- you have reached your destination
             Nothing -> case closestOfGivenPositions dists surrounds of
               Just (_dist, closest) -> traceRoute' closest (closest:route)
               Nothing               -> error "No route found"
   in
-    trace "Chosen route: " $ traceRoute' fromPosn [fromPosn]
+    traceRoute' fromPosn [fromPosn]
 
-moveEntity :: Grid -> Entities -> Entity -> IO Entities
-moveEntity grid@(_, xs, _) entities (c, coord, hp) = do
+moveEntity :: Grid -> Entities -> Entity -> IO (Maybe Coord)
+moveEntity grid@(_, xs, _) entities (c, coord, _) = do
   bfs <- dijkstra grid entities coord
   let dists = (bfs, xs)
       enemies = Map.filter (\(c2, _, _) -> c /= c2) entities
@@ -161,10 +178,9 @@ moveEntity grid@(_, xs, _) entities (c, coord, hp) = do
   case closestOfGivenPositions dists positionsAdjacentToEnemies of
     Just (_dist, closest) ->
       let (_origPosn:nextStep:_rest) = traceRoute dists closest coord
-          addedEntity = trace "added new posn " $ Map.insert nextStep (c, nextStep, hp) entities
       in
-        pure (Map.delete coord addedEntity)
-    Nothing -> pure entities  -- There is no enemy which can be reached
+        pure (Just nextStep)
+    Nothing -> pure Nothing  -- There is no enemy which can be reached
 
 
 dijkstra :: Grid -> Entities -> Coord -> IO (V.Vector Int)
@@ -201,25 +217,39 @@ dijkstra' grid@(_, xs, _) entities source bfs ((nextPosn,dist):<|posns) =
 
 stepRound :: Grid -> Entities -> IO Entities
 stepRound grid entities =
-  foldM (\ioentities entity -> entityTurn grid ioentities entity) entities (Map.elems entities)
+  foldM (\entities' (_, coord, _) ->
+           case Map.lookup coord entities' of
+             Nothing -> pure entities'
+             Just entity -> entityTurn grid entities' entity
+        ) entities (Map.elems entities)
 
-runToEnd :: Int -> Grid -> Entities -> IO Entities
+runToEnd :: Int -> Grid -> Entities -> IO (Int, Entities)
 runToEnd tick grid entities = do
-  putStrLn ("Tick: " ++ show tick)
   entities' <- stepRound grid entities
-  if entities /= entities' then
-    putStrLn $ showGrid grid entities'
-    else
-    pure ()
-  if (length $ filter (\(c, _, _) -> c == Elf) (Map.elems entities')) == 0 then
-    pure entities'
+  putStrLn ("Tick: " ++ show tick)
+  putStrLn . unlines $ show <$> (Map.elems entities')
+  if (Map.keys entities) /= (Map.keys entities') then putStrLn $ showGrid grid entities' else pure ()
+  if (length $ filter (\(c, _, _) -> c == Elf) (Map.elems entities')) == 0
+    || (length $ filter (\(c, _, _) -> c == Goblin) (Map.elems entities')) == 0 then
+    pure (tick, entities')
   else
     runToEnd (tick + 1) grid entities'
+
+score :: Int -> Entities -> Int
+score rounds entities =
+  rounds * (sum $ map (\(_, _, hp) -> hp) (Map.elems entities))
+
+elfPower :: Int
+elfPower = 23 -- set to 3 to win part 1
 
 main :: IO ()
 main = do
   (grid, entities) <- ingest
   print entities
+  print . length $ filter (\(c, _, _) -> c == Elf) (Map.elems entities)
   putStrLn $ showGrid grid entities
-  _ <- runToEnd 0 grid entities
+  (rounds, entities') <- runToEnd 0 grid entities
+  putStrLn $ "Score: " ++ (show $ score rounds entities')
+
+  print . length $ filter (\(c, _, _) -> c == Elf) (Map.elems entities')
   pure ()
